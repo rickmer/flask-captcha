@@ -95,9 +95,9 @@ def captcha_image(key):
     image = image.crop((0, 0, xpos + 1, size[1]))
     draw = ImageDraw.Draw(image)
 
-    for f in settings.noise_functions():
+    for f in noise_functions():
         draw = f(draw, image)
-    for f in settings.filter_functions():
+    for f in filter_functions():
         image = f(image)
 
     out = StringIO()
@@ -147,3 +147,12 @@ def captcha_refresh():
     resp = make_response(json.dumps(to_json_response))
     resp.content_type = 'application/json'
     return resp
+
+@captcha_blueprint.route('/captcha_validate/<hashkey>/<response>')
+def captcha_validate(hashkey, response):
+    response = response.strip().lower()
+    CaptchaStore.remove_expired()
+    if not CaptchaStore.validate(hashkey, response):
+        return make_response("", 400)
+
+    return make_response("", 200)

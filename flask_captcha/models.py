@@ -54,6 +54,23 @@ class CaptchaStore(db.Model):
         db.session.add(self)
         db.session.commit()
 
+    @classmethod
+    def validate(cls, hashkey, response):
+        '''
+        Returns true or false if key validates or not
+        '''
+        find = db.session.query(CaptchaStore).filter(
+            CaptchaStore.hashkey==hashkey,
+            CaptchaStore.expiration > get_safe_now())
+
+        if find.count() == 0:
+            return False
+
+        ret = (find.first().response == response)
+        db.session.delete(find.first())
+        db.session.commit()
+        return ret
+
     def __unicode__(self):
         return self.challenge
 

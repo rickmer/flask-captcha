@@ -5,7 +5,7 @@ from flask import current_app
 
 DEBUG = True
 
-CAPTCHA_FONT_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'fonts/Vera.ttf'))
+CAPTCHA_FONT_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), 'fonts/Vera.ttf'))
 CAPTCHA_FONT_SIZE = 22
 CAPTCHA_LETTER_ROTATION = (-35, 35)
 CAPTCHA_BACKGROUND_COLOR = '#ffffff'

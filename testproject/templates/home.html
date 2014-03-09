@@ -3,25 +3,47 @@
     <title>Example</title>
   </head>
   <body>
+      <img id="captcha-img" src="" alt="captcha" />
+      <input type="text" id="captcha-text" />
+      <a href="#" target="_blank" alt="audio-captcha" id="captcha-audio">Audio captcha</a>
+      <input id="captcha-validate" type="button" value="Validate" />
+      <div id="captcha-result"></div>
+  </form>
   <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
   <script type="text/javascript">
-    var jqxhr = $.ajax("/captcha/captcha_refresh/", {
-      contentType : 'application/json',
-      type: 'GET',
-    })
-    .done(function(data) {
-      console.log("done! data = " + JSON.stringify(data));
-      $("#captcha-img").attr("src", data.image_url);
-    })
-    .fail(function() {
-      console.log("error");
+    var hashkey = null;
+    var refresh_captcha = function () {
+      var jqxhr = $.ajax("/captcha/captcha_refresh/", {
+        contentType : 'application/json',
+        type: 'GET',
+      })
+      .done(function(data) {
+        $("#captcha-img").attr("src", data.image_url);
+        $("#captcha-audio").attr("href", "/captcha/captcha_audio/" + data.key);
+        hashkey = data.key;
+      })
+      .fail(function() {
+        console.log("error refreshing captcha");
+      });
+    };
+    refresh_captcha();
+
+    $("#captcha-validate").click(function () {
+      var text = $("#captcha-text").val();
+      $.ajax("/captcha/captcha_validate/" + hashkey + "/" + text, {
+        contentType : 'application/json',
+        type: 'GET',
+      })
+      .done(function() {
+        console.log("captcha validated!");
+        $("#captcha-result").html("Captcha validated!");
+      })
+      .fail(function() {
+        console.log("captcha NOT validated!");
+        $("#captcha-result").html("Captcha not validated, reloading");
+        refresh_captcha();
+      });
     });
   </script>
-      <img id="captcha-img" src="" alt="captcha" />
-      <input type="text" id="captcha_text" />
-      <div>
-        <input type="button" value="Submit" />
-      </div>
-  </form>
   </body>
 </html>
