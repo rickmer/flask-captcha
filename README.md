@@ -1,4 +1,4 @@
-# Django Simple Captcha
+# Flask-Captcha
 
 Python Simple Captcha is an extremely simple, yet highly customizable flask extension to use
 
