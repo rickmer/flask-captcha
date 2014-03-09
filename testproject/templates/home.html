@@ -1,10 +1,27 @@
-<form action="." method="post">
-    {% csrf_token %}
-
-    {{form.captcha.errors}}
-    {{form.captcha}}
-
-    <div>
-        <input type="submit" value="Submit" />
-    </div>
-</form>
+<html>
+  <head>
+    <title>Example</title>
+  </head>
+  <body>
+  <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+  <script type="text/javascript">
+    var jqxhr = $.ajax("/captcha/captcha_refresh/", {
+      contentType : 'application/json',
+      type: 'GET',
+    })
+    .done(function(data) {
+      console.log("done! data = " + JSON.stringify(data));
+      $("#captcha-img").attr("src", data.image_url);
+    })
+    .fail(function() {
+      console.log("error");
+    });
+  </script>
+      <img id="captcha-img" src="" alt="captcha" />
+      <input type="text" id="captcha_text" />
+      <div>
+        <input type="button" value="Submit" />
+      </div>
+  </form>
+  </body>
+</html>

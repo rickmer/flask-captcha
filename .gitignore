@@ -3,6 +3,7 @@ dist
 *.egg-info
 docs/_build/
 .venv*
+*.sqlite
 testproject/django-simple-captcha.db
 testproject/.coverage
 testproject/coverage.xml
