@@ -22,3 +22,16 @@ Python Simple Captcha is an extremely simple, yet highly customizable flask exte
 The current development version supports Python3 via the `six <https://pypi.python.org/pypi/six>`_ compatibility layer.
 You will need to install `Pillow <https://github.com/python-imaging/Pillow>`_ because PIL doesn't support Python3 yet.
 
+## Troubleshooting
+
+* If the captcha does not render, try opening the img url link directly. If you get this error
+
+"Python: The _imagingft C module is not installed"
+
+You need to recompile Pillow with libfreetype6 support. To do this
+
+$ sudo apt-get install libfreetype6-dev
+
+$ pip uninstall pillow
+
+$ pip install pillow
