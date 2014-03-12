@@ -1,6 +1,4 @@
 from setuptools import setup, find_packages
-from flask_captcha import pillow_required, get_version as get_captcha_version
-
 from pip.req import parse_requirements
 
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
@@ -12,7 +10,7 @@ reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
     name='Flask-Captcha',
-    version=get_captcha_version(),
+    version="0.1.2",
     description='A very simple, yet powerful, Flask captcha extension',
     author='Eduardo Robles Elvira',
     author_email='edulix@wadobo.com',
