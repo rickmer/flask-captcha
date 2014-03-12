@@ -4,7 +4,7 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.captcha.models import db, CaptchaStore
 from version import VERSION, get_version
 
-VERSION = (0, 1, 2)
+VERSION = (0, 1, 3)
 
 class Captcha(object):
     ext_db = None
