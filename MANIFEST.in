@@ -1,0 +1,2 @@
+recursive-include flask_captcha *.py LICENSE flask_captcha/fonts
+include *md *txt LICENSE requirements.txt
