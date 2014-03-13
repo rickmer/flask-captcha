@@ -29,3 +29,15 @@ $ sudo apt-get install libfreetype6-dev
 $ pip uninstall pillow
 
 $ pip install pillow
+
+## Development and releases
+
+Developers with release credentials can upload a new version to Pypi using the following two commands:
+
+    $ python setup.py sdist upload
+    $ python setup.py bdist_egg upload
+
+To create a new release, you need to:
+ * update the VERSION variable in flask_captcha/__init__.py
+ * updated the version in the setup.py script
+ * create a git tag for the release
