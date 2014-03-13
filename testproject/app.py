@@ -7,7 +7,6 @@ from flask import render_template
 from flask.ext.sqlalchemy import SQLAlchemy
 import argparse
 from flask.ext.captcha import Captcha
-from flask.ext.captcha.models import CaptchaStore
 from flask.ext.captcha.views import captcha_blueprint
 
 ROOT_PATH = os.path.split(os.path.abspath(__file__))[0]
