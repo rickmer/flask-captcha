@@ -1,7 +1,7 @@
 import re
 from flask import current_app
 from flask.ext.sqlalchemy import SQLAlchemy
-from flask.ext.captcha.models import db, CaptchaStore
+from flask.ext.captcha.models import db, CaptchaStore, CaptchaSequence
 
 VERSION = (0, 1, 6)
 
@@ -18,4 +18,5 @@ class Captcha(object):
             self.ext_db = current_app.extensions['sqlalchemy'].db
             active_metadata = self.ext_db.metadata
             CaptchaStore.__table__ = CaptchaStore.__table__.tometadata(active_metadata)
+            CaptchaSequence.__table__ = CaptchaSequence.__table__.tometadata(active_metadata)
 

@@ -1,4 +1,4 @@
-from flask.ext.captcha.models import CaptchaStore
+from flask.ext.captcha.models import CaptchaStore, CaptchaSequence, CaptchaSequenceCache, get_safe_now
 from flask.ext.captcha.helpers import noise_functions, filter_functions
 from flask import Blueprint, request, make_response, render_template, url_for
 from flask import current_app
@@ -23,6 +23,8 @@ except ImportError:
 
 import json
 
+
+
 db = SQLAlchemy()
 
 NON_DIGITS_RX = re.compile('[^\d]')
@@ -40,11 +42,32 @@ def getsize(font, text):
 
 @captcha_blueprint.route('/captcha_image/<key>')
 def captcha_image(key):
-    store = db.session.query(CaptchaStore).filter(CaptchaStore.hashkey==key)
-    if store.count() == 0:
-        return make_response("", 404)
-    store = store.first()
-    text = store.challenge
+
+    if not current_app.config['CAPTCHA_PREGEN']:
+        store = db.session.query(CaptchaStore).filter(CaptchaStore.hashkey==key)
+        if store.count() == 0:
+            return make_response("", 404)
+        store = store.first()
+        text = store.challenge
+
+        image = make_image(text)
+
+        out = StringIO()
+        image.save(out, "PNG")
+        out.seek(0)
+    else:
+        image_path = current_app.config['CAPTCHA_PREGEN_PATH']
+        path = str(os.path.join(image_path, '%s.png' % key))
+        print(path)
+        if os.path.isfile(path):
+            out = open(path, 'rb')
+            out.seek(0)
+
+    response = make_response(out.read())
+    response.content_type = 'image/png'
+    return response
+
+def make_image(text):
     font_path = current_app.config['CAPTCHA_FONT_PATH']
     font_size = current_app.config['CAPTCHA_FONT_SIZE']
     punctuation = current_app.config['CAPTCHA_PUNCTUATION']
@@ -100,13 +123,7 @@ def captcha_image(key):
     for f in filter_functions():
         image = f(image)
 
-    out = StringIO()
-    image.save(out, "PNG")
-    out.seek(0)
-
-    response = make_response(out.read())
-    response.content_type = 'image/png'
-    return response
+    return image
 
 @captcha_blueprint.route('/captcha_audio/<key>')
 def captcha_audio(key):
@@ -139,11 +156,26 @@ def captcha_refresh():
     Return json with new captcha for ajax refresh request
     '''
 
-    new_key = CaptchaStore.generate_key()
+    if not current_app.config['CAPTCHA_PREGEN']:
+        new_key = CaptchaStore.generate_key()
+    else:
+        next_index = CaptchaSequenceCache.get().next()
+        print(next_index)
+        store = db.session.query(CaptchaStore).filter(CaptchaStore.index==next_index)
+        if store.count() == 0:
+            return make_response("", 404)
+        else:
+            value = store.first()
+            value.set_expiration()
+            db.session.commit()
+            print("preload: using key %s " % value.hashkey)
+            new_key = value.hashkey
+
     to_json_response = {
         'key': new_key,
         'image_url': url_for(".captcha_image", key=new_key),
     }
+
     resp = make_response(json.dumps(to_json_response))
     resp.content_type = 'application/json'
     return resp
@@ -151,7 +183,8 @@ def captcha_refresh():
 @captcha_blueprint.route('/captcha_validate/<hashkey>/<response>')
 def captcha_validate(hashkey, response):
     response = response.strip().lower()
-    CaptchaStore.remove_expired()
+    if not current_app.config['CAPTCHA_PREGEN']:
+        CaptchaStore.remove_expired()
     if not CaptchaStore.validate(hashkey, response):
         return make_response("", 400)
 

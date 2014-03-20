@@ -111,3 +111,42 @@ def filter_functions():
     if filter_fs:
         return map(_callable_from_string, filter_fs)
     return []
+
+def generate_images(count):
+    from flask.ext.captcha.models import CaptchaStore
+    from flask.ext.captcha.views import make_image
+    import os
+
+    CaptchaStore.delete_all()
+    clear_images()
+
+    for i in range(0, count):
+        c = CaptchaStore.generate(i)
+        text = c.challenge
+
+        image = make_image(text)
+        image_path = current_app.config['CAPTCHA_PREGEN_PATH']
+        path = str(os.path.join(image_path, '%s.png' % c.hashkey))
+        print("saving to %s" % path)
+        out = open(path, 'wb')
+        image.save(out, "PNG")
+        out.close()
+
+    return i + 1
+
+def clear_images():
+    import os
+    image_path = current_app.config['CAPTCHA_PREGEN_PATH']
+    if os.path.exists(image_path):
+        for the_file in os.listdir(image_path):
+            if the_file.endswith(".png"):
+                file_path = os.path.join(image_path, the_file)
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+
+# create captcha directory if it does not exist
+def init_captcha_dir():
+    import os
+    image_path = current_app.config['CAPTCHA_PREGEN_PATH']
+    if not os.path.exists(image_path):
+        os.makedirs(image_path)
