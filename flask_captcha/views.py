@@ -3,6 +3,11 @@ from flask.ext.captcha.helpers import noise_functions, filter_functions
 from flask import Blueprint, request, make_response, render_template, url_for
 from flask import current_app
 from flask.ext.sqlalchemy import SQLAlchemy
+
+from sqlalchemy.exc import InvalidRequestError, DBAPIError
+
+from functools import partial
+import time
 import random
 import re
 import tempfile
@@ -31,6 +36,66 @@ NON_DIGITS_RX = re.compile('[^\d]')
 # Distance of the drawn text from the top of the captcha image
 from_top = 4
 
+def set_serializable():
+
+    # if using postgres, then we check concurrency
+    if "postgres" in current_app.config.get("SQLALCHEMY_DATABASE_URI", "") and\
+        current_app.config.get("CAPTCHA_SERIALIZE_TRANSACTIONS", False):
+        import psycopg2
+        # commit to separate everything in a new transaction
+        db.session.commit()
+        conn = db.session.bind.engine.connect().connection.connection
+        conn.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
+
+def unset_serializable():
+    # if using postgres, then we check concurrency
+    if "postgres" in current_app.config.get("SQLALCHEMY_DATABASE_URI", "") and\
+        current_app.config.get("CAPTCHA_SERIALIZE_TRANSACTIONS", False):
+        import psycopg2
+        conn = db.session.bind.engine.connect().connection.connection
+        conn.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+
+def serializable_retry(func, max_num_retries=None):
+    '''
+    This decorator calls another function whose next commit will be serialized.
+    This might triggers a rollback. In that case, we will retry with some
+    increasing (5^n * random, where random goes from 0.5 to 1.5 and n starts
+    with 1) timing between retries, and fail after a max number of retries.
+    '''
+    def wrap(max_num_retries, *args, **kwargs):
+        if max_num_retries is None:
+            max_num_retries = current_app.config.get(
+                'MAX_NUM_SERIALIZED_RETRIES', 1)
+
+        retries = 1
+        initial_sleep_time = 5 # miliseconds
+
+        set_serializable()
+        while True:
+            try:
+                ret = func(*args, **kwargs)
+                break
+            except (InvalidRequestError, DBAPIError) as e:
+                db.session.rollback()
+                if retries > max_num_retries:
+                    unset_serializable()
+                    db.session.commit()
+                    raise e
+
+                retries += 1
+                sleep_time = (initial_sleep_time**retries) * (random.random() + 0.5)
+                time.sleep(sleep_time * 0.001) # specified in seconds
+            except:
+                raise e
+
+        unset_serializable()
+        db.session.commit()
+        return ret
+
+    return partial(wrap, max_num_retries)
+
 
 captcha_blueprint = Blueprint('captcha', __name__)
 
@@ -43,7 +108,7 @@ def getsize(font, text):
 @captcha_blueprint.route('/captcha_image/<key>')
 def captcha_image(key):
 
-    if not current_app.config['CAPTCHA_PREGEN']:
+    if not current_app.config.get('CAPTCHA_PREGEN', False):
         store = db.session.query(CaptchaStore).filter(CaptchaStore.hashkey==key)
         if store.count() == 0:
             return make_response("", 404)
@@ -134,6 +199,7 @@ def captcha_audio(key):
         if store.count() == 0:
             return make_response("", 404)
         store = store.first()
+
         text = store.challenge
         if 'captcha.helpers.math_challenge' == challenge_funct:
             text = text.replace('*', 'times').replace('-', 'minus')
@@ -155,21 +221,27 @@ def captcha_refresh():
     '''
     Return json with new captcha for ajax refresh request
     '''
-
-    if not current_app.config['CAPTCHA_PREGEN']:
-        new_key = CaptchaStore.generate_key()
-    else:
-        next_index = CaptchaSequenceCache.get().next()
-        print(next_index)
-        store = db.session.query(CaptchaStore).filter(CaptchaStore.index==next_index)
-        if store.count() == 0:
-            return make_response("", 404)
+    @serializable_retry
+    def critical_path():
+        if not current_app.config.get('CAPTCHA_PREGEN', False):
+            new_key = CaptchaStore.generate_key()
         else:
-            value = store.first()
-            value.set_expiration()
-            db.session.commit()
-            print("preload: using key %s " % value.hashkey)
-            new_key = value.hashkey
+            next_index = CaptchaSequenceCache.get().next()
+            print(next_index)
+            store = db.session.query(CaptchaStore).filter(CaptchaStore.index==next_index)
+            if store.count() == 0:
+                return None
+            else:
+                value = store.first()
+                value.set_expiration()
+                db.session.commit()
+                print("preload: using key %s " % value.hashkey)
+                new_key = value.hashkey
+        return new_key
+
+    new_key = critical_path()
+    if new_key is None:
+        return make_response("", 404)
 
     to_json_response = {
         'key': new_key,
@@ -183,9 +255,13 @@ def captcha_refresh():
 @captcha_blueprint.route('/captcha_validate/<hashkey>/<response>')
 def captcha_validate(hashkey, response):
     response = response.strip().lower()
-    if not current_app.config['CAPTCHA_PREGEN']:
-        CaptchaStore.remove_expired()
-    if not CaptchaStore.validate(hashkey, response):
-        return make_response("", 400)
 
+    @serializable_retry
+    def critical_path():
+        if not current_app.config.get('CAPTCHA_PREGEN', False):
+            CaptchaStore.remove_expired()
+        if not CaptchaStore.validate(hashkey, response):
+            return make_response("", 400)
+
+    critical_path()
     return make_response("", 200)
