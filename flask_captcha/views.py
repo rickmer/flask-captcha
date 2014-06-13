@@ -108,6 +108,7 @@ def getsize(font, text):
 @captcha_blueprint.route('/captcha_image/<key>')
 def captcha_image(key):
 
+    out = StringIO()
     if not current_app.config.get('CAPTCHA_PREGEN', False):
         store = db.session.query(CaptchaStore).filter(CaptchaStore.hashkey==key)
         if store.count() == 0:
@@ -117,7 +118,6 @@ def captcha_image(key):
 
         image = make_image(text)
 
-        out = StringIO()
         image.save(out, "PNG")
         out.seek(0)
     else:
