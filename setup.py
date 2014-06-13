@@ -14,7 +14,7 @@ reqs = [str(ir.req) for ir in install_reqs]
 
 setup(
     name='Flask-Captcha',
-    version="0.1.7",
+    version="0.1.8",
     description='A very simple, yet powerful, Flask captcha extension',
     author='Eduardo Robles Elvira',
     author_email='edulix@wadobo.com',

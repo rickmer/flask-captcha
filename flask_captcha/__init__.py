@@ -3,7 +3,7 @@ from flask import current_app
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask.ext.captcha.models import db, CaptchaStore, CaptchaSequence
 
-VERSION = (0, 1, 7)
+VERSION = (0, 1, 8)
 
 class Captcha(object):
     ext_db = None
