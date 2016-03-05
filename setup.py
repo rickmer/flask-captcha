@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 from pip.req import parse_requirements
-from pip.req.download import PipSession
+from pip.download import PipSession
 
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
 if os.path.exists("requirements.txt"):
